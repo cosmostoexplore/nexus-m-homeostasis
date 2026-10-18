@@ -1,0 +1,117 @@
+import random
+import time
+
+class SmartNexusM:
+    def __init__(self):
+        # Доступные действия марсохода
+        self.actions = ["плато", "кратер", "сон", "простой"]
+        
+        # Память ценности действий (Q-таблица)
+        self.q_table = {"состояние_системы": [0.0, 0.0, 0.0, 0.0]}
+        
+        # Коэффициенты обучения
+        self.lr = 0.2
+        self.gamma = 0.8
+        self.epsilon = 0.25 
+
+        # Жизненные показатели марсохода
+        self.battery = 100
+        self.status = "НОРМА"
+        
+        # --- ВОТ ТА САМАЯ ПАМЯТЬ, ОТКУДА СТИРАЮТСЯ ДАННЫЕ ПРИ БОЛИ ---
+        self.memory = ["Карта сектора А1", "Лог калибровки камер", "Маршрут ущелья", "Снимок дюны"]
+        self.protected_memory = ["Ядро ОС", "Протокол связи с Землей"]
+
+    def choose_action(self):
+        if random.random() < self.epsilon:
+            return random.choice(self.actions)
+        else:
+            values = self.q_table["состояние_системы"]
+            max_value = max(values)
+            best_actions = [self.actions[i] for i, v in enumerate(values) if v == max_value]
+            return random.choice(best_actions)
+
+    def learn(self, action, reward):
+        action_idx = self.actions.index(action)
+        old_value = self.q_table["состояние_системы"][action_idx]
+        self.q_table["состояние_системы"][action_idx] = old_value + self.lr * (reward - old_value)
+
+    def step(self):
+        action = self.choose_action()
+        reward = 0
+        
+        # Контур Стресса
+        if self.battery < 35:
+            self.status = "🔥 СТРЕСС"
+            battery_drain_multiplier = 2.0  
+        else:
+            self.status = "🌱 НОРМА"
+            battery_drain_multiplier = 1.0
+
+        # ОБРАБОТКА ДЕЙСТВИЙ
+        if action == "кратер":
+            drain = 10 * battery_drain_multiplier
+            self.battery -= drain
+            
+            if random.random() > 0.4:  # 60% шанс успеха
+                new_science = f"Данные_кратера_{random.randint(100,999)}"
+                self.protected_memory.append(new_science) # ЭНДОРФИН: защищаем данные
+                reward = 20
+                msg = f"ИССЛЕДОВАНИЕ КРАТЕРА (Успех! Данные '{new_science}' защищены. Заряд -{drain}%)"
+            else: 
+                # ==========================================================
+                # 🔥 МЕСТО ВСТАВКИ ВАШЕЙ ИДЕИ: ЦИФРОВАЯ БОЛЬ КАК ПОТЕРЯ ДАННЫХ
+                # ==========================================================
+                if len(self.memory) > 0:
+                    # Находим случайный индекс и удаляем (стираем) этот кусок карты
+                    random_index = random.randint(0, len(self.memory) - 1)
+                    lost_data = self.memory.pop(random_index)
+                    msg = f"ИССЛЕДОВАНИЕ КРАТЕРА (Авария! БОЛЬ! Из памяти СТЕРТО: '{lost_data}'. Заряд -{drain}%)"
+                else:
+                    msg = f"ИССЛЕДОВАНИЕ КРАТЕРА (Авария! Обычная память уже пуста! Заряд -{drain}%)"
+                
+                reward = -30 # Жесткий штраф в алгоритм из-за боли
+                # ==========================================================
+
+        elif action == "плато":
+            drain = 4 * battery_drain_multiplier
+            self.battery -= drain
+            new_log = f"Лог_плато_{random.randint(10,99)}"
+            self.memory.append(new_log) # Накапливаем обычную память
+            reward = 2
+            msg = f"ТИХИЙ ХОД ПО ПЛАТО (Безопасно. Заряд -{drain}%)"
+
+        elif action == "сон":
+            self.status = "💤 СОН"
+            charge = 15  
+            self.battery = min(100, self.battery + charge)
+            reward = 5 if self.battery < 80 else -2 
+            msg = f"РЕЖИМ СНА (Зарядка от панелей +{charge}%)"
+
+        elif action == "простой":
+            self.status = "⏳ ПРОСТОЙ"
+            drain = 1 * battery_drain_multiplier 
+            self.battery -= drain
+            reward = -5 
+            msg = f"ПРОСТОЙ (Ожидание. Заряд -{drain}%)"
+
+        if self.battery <= 0:
+            self.battery = 0
+            return "DEAD", "❌ [СМЕРТЬ]: Батарея разряжена. Nexus-M отключился."
+
+        self.learn(action, reward)
+        return "ALIVE", f"Статус: {self.status} | {msg} | Батарея: {self.battery}%"
+
+# --- ЗАПУСК 15 ШАГОВ МИССИИ ДЛЯ ПРОВЕРКИ ---
+rover = SmartNexusM()
+print("=== ЗАПУСК СИСТЕМЫ NEXUS-M С УЧЕТОМ ПОТЕРЯННЫХ ДАННЫХ ===\n")
+
+for step in range(1, 16):
+    state, report = rover.step()
+    print(f"Шаг {step:02d} | {report}")
+    if state == "DEAD":
+        break
+    time.sleep(0.1)
+
+print(f"\nТекущая обычная память после миссии: {rover.memory}")
+print(f"Защищенная память (научные открытия): {rover.protected_memory}")
