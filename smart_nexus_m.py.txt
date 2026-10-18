@@ -1,24 +1,23 @@
 import random
 import time
 
-class SmartNexusM:
+class UltimateNexusM:
     def __init__(self):
-        # Доступные действия марсохода
+        # 4 базовых состояния жизненного цикла
         self.actions = ["плато", "кратер", "сон", "простой"]
-        
-        # Память ценности действий (Q-таблица)
         self.q_table = {"состояние_системы": [0.0, 0.0, 0.0, 0.0]}
         
-        # Коэффициенты обучения
+        # Коэффициенты машинного обучения (Q-learning)
         self.lr = 0.2
         self.gamma = 0.8
         self.epsilon = 0.25 
 
-        # Жизненные показатели марсохода
-        self.battery = 100
+        # Физические показатели системы
+        self.battery = 50  # Стартуем с половины заряда
         self.status = "НОРМА"
+        self.temperature = 35.0  # Нормальная температура чипа в градусах
         
-        # --- ВОТ ТА САМАЯ ПАМЯТЬ, ОТКУДА СТИРАЮТСЯ ДАННЫЕ ПРИ БОЛИ ---
+        # Базы данных (уязвимая обычная и защищенная долговременная)
         self.memory = ["Карта сектора А1", "Лог калибровки камер", "Маршрут ущелья", "Снимок дюны"]
         self.protected_memory = ["Ядро ОС", "Протокол связи с Землей"]
 
@@ -40,78 +39,92 @@ class SmartNexusM:
         action = self.choose_action()
         reward = 0
         
-        # Контур Стресса
+        # 1. КОНТУР СТРЕССА (Падение напряжения при низком заряде)
         if self.battery < 35:
             self.status = "🔥 СТРЕСС"
-            battery_drain_multiplier = 2.0  
+            battery_drain_multiplier = 2.0  # Расход удваивается из-за паники системы
         else:
             self.status = "🌱 НОРМА"
             battery_drain_multiplier = 1.0
 
-        # ОБРАБОТКА ДЕЙСТВИЙ
+        # Охлаждение системы в штатном режиме
+        if action != "сон":
+            self.temperature = max(35.0, self.temperature - 0.5)
+
+        # 2. ОБРАБОТКА ДЕЙСТВИЙ И НЕИЗБЕЖНЫХ ФИЗИЧЕСКИХ ПОСЛЕДСТВИЙ
         if action == "кратер":
             drain = 10 * battery_drain_multiplier
             self.battery -= drain
             
-            if random.random() > 0.4:  # 60% шанс успеха
+            if random.random() > 0.4:  # Успешный риск
                 new_science = f"Данные_кратера_{random.randint(100,999)}"
-                self.protected_memory.append(new_science) # ЭНДОРФИН: защищаем данные
+                self.protected_memory.append(new_science)  # Эндорфин: запись в бессмертную память
                 reward = 20
                 msg = f"ИССЛЕДОВАНИЕ КРАТЕРА (Успех! Данные '{new_science}' защищены. Заряд -{drain}%)"
             else: 
-                # ==========================================================
-                # 🔥 МЕСТО ВСТАВКИ ВАШЕЙ ИДЕИ: ЦИФРОВАЯ БОЛЬ КАК ПОТЕРЯ ДАННЫХ
-                # ==========================================================
+                # Быстрая цифровая боль от аварии
                 if len(self.memory) > 0:
-                    # Находим случайный индекс и удаляем (стираем) этот кусок карты
-                    random_index = random.randint(0, len(self.memory) - 1)
-                    lost_data = self.memory.pop(random_index)
-                    msg = f"ИССЛЕДОВАНИЕ КРАТЕРА (Авария! БОЛЬ! Из памяти СТЕРТО: '{lost_data}'. Заряд -{drain}%)"
+                    lost_data = self.memory.pop(random.randint(0, len(self.memory) - 1))
+                    msg = f"ИССЛЕДОВАНИЕ КРАТЕРА (Авария! БОЛЬ! Стерто из карты: '{lost_data}'. Заряд -{drain}%)"
                 else:
-                    msg = f"ИССЛЕДОВАНИЕ КРАТЕРА (Авария! Обычная память уже пуста! Заряд -{drain}%)"
-                
-                reward = -30 # Жесткий штраф в алгоритм из-за боли
-                # ==========================================================
+                    msg = f"ИССЛЕДОВАНИЕ КРАТЕРА (Авария! Системный сбой! Заряд -{drain}%)"
+                reward = -30
 
         elif action == "плато":
             drain = 4 * battery_drain_multiplier
             self.battery -= drain
             new_log = f"Лог_плато_{random.randint(10,99)}"
-            self.memory.append(new_log) # Накапливаем обычную память
+            self.memory.append(new_log)
             reward = 2
-            msg = f"ТИХИЙ ХОД ПО ПЛАТО (Безопасно. Заряд -{drain}%)"
+            msg = f"ТИХИЙ ХОД ПО ПЛАТО (Сбор рутины. Заряд -{drain}%)"
 
         elif action == "сон":
             self.status = "💤 СОН"
-            charge = 15  
-            self.battery = min(100, self.battery + charge)
-            reward = 5 if self.battery < 80 else -2 
-            msg = f"РЕЖИМ СНА (Зарядка от панелей +{charge}%)"
+            
+            # 🔥 МЕСТО ВСТАВКИ ВАШЕЙ ИДЕИ: КОНТУР ПЕРЕЗАРЯДА И ПЕРЕГРЕВА
+            if self.battery >= 100:
+                self.battery = 100
+                self.temperature += 15.0  # Экстремальный нагрев от избытка солнечной энергии
+                
+                # Запуск боли из-за теплового разгона аккумулятора
+                if len(self.memory) > 0:
+                    lost_data = self.memory.pop(random.randint(0, len(self.memory) - 1))
+                    msg = f"КРИТИЧЕСКИЙ ПЕРЕЗАРЯД! (Температура {self.temperature}°C! БОЛЬ! Выгорели данные: '{lost_data}')"
+                else:
+                    msg = f"КРИТИЧЕСКИЙ ПЕРЕЗАРЯД! (Температура {self.temperature}°C! Плавятся шины процессора!)"
+                
+                reward = -40  # Жесткое наказание за вечный сон
+            else:
+                charge = 15
+                self.battery = min(100, self.battery + charge)
+                reward = 5 if self.battery < 80 else -2
+                msg = f"РЕЖИМ СНА (Безопасная зарядка +{charge}%, Темп: {self.temperature}°C)"
 
         elif action == "простой":
             self.status = "⏳ ПРОСТОЙ"
-            drain = 1 * battery_drain_multiplier 
+            drain = 1 * battery_drain_multiplier
             self.battery -= drain
-            reward = -5 
-            msg = f"ПРОСТОЙ (Ожидание. Заряд -{drain}%)"
+            reward = -5  # Медленная боль от потери времени и утечки вольтажа
+            msg = f"ПРОСТОЙ (Ожидание в тени. Заряд -{drain}%)"
 
+        # Крах по питанию (Смерть)
         if self.battery <= 0:
             self.battery = 0
-            return "DEAD", "❌ [СМЕРТЬ]: Батарея разряжена. Nexus-M отключился."
+            return "DEAD", "❌ [ФАТАЛЬНЫЙ РАЗРЯД]: Напряжение упало до нуля. Система Nexus-M отключилась навсегда."
 
         self.learn(action, reward)
         return "ALIVE", f"Статус: {self.status} | {msg} | Батарея: {self.battery}%"
 
-# --- ЗАПУСК 15 ШАГОВ МИССИИ ДЛЯ ПРОВЕРКИ ---
-rover = SmartNexusM()
-print("=== ЗАПУСК СИСТЕМЫ NEXUS-M С УЧЕТОМ ПОТЕРЯННЫХ ДАННЫХ ===\n")
+# --- ТЕСТ СИМУЛЯЦИИ НА 20 ШАГОВ ---
+rover = UltimateNexusM()
+print("=== ЗАПУСК ПРОВЕРКИ АРХИТЕКТУРЫ С ЦИКЛОМ ПЕРЕЗАРЯДА ===\n")
 
-for step in range(1, 16):
+for step in range(1, 21):
     state, report = rover.step()
     print(f"Шаг {step:02d} | {report}")
     if state == "DEAD":
         break
-    time.sleep(0.1)
+    time.sleep(0.05)
 
-print(f"\nТекущая обычная память после миссии: {rover.memory}")
-print(f"Защищенная память (научные открытия): {rover.protected_memory}")
+print(f"\nФинальный остаток обычной памяти: {rover.memory}")
+print(f"Финальный остаток защищенной памяти: {rover.protected_memory}")
